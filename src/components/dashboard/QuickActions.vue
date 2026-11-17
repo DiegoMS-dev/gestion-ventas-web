@@ -1,19 +1,25 @@
-
 <script setup>
-import { ShoppingCart, PackagePlus } from 'lucide-vue-next';
+import { ShoppingCart, PackagePlus, UserPlus } from 'lucide-vue-next';
 
+// Cada vista lee el parámetro de la URL y abre su formulario de creación
 const actions = [
     {
         title: 'Nueva venta',
         description: 'Registrar una operación',
         icon: ShoppingCart,
-        link: '/ventas/nueva'
+        link: '/ventas?nueva=1'
     },
     {
         title: 'Nuevo producto',
         description: 'Agregar al catálogo',
         icon: PackagePlus,
-        link: '/productos/nuevo'
+        link: '/productos?nuevo=1'
+    },
+    {
+        title: 'Nuevo cliente',
+        description: 'Registrar un cliente',
+        icon: UserPlus,
+        link: '/clientes?nuevo=1'
     }
 ];
 </script>
@@ -29,7 +35,7 @@ const actions = [
             </p>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <RouterLink
                 v-for="action in actions"
                 :key="action.title"

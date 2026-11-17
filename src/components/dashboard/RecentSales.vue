@@ -1,17 +1,10 @@
-
 <script setup>
-const sales = [
-    { id: 'V-001', client: 'Carlos Mendoza', date: '16/11/2026', total: 'S/ 250.00', status: 'Completada' },
-    { id: 'V-002', client: 'Ana Torres', date: '16/11/2026', total: 'S/ 180.00', status: 'Pendiente' },
-    { id: 'V-003', client: 'Luis Ramírez', date: '15/11/2026', total: 'S/ 420.00', status: 'Completada' },
-    { id: 'V-004', client: 'María López', date: '15/11/2026', total: 'S/ 95.00', status: 'Cancelada' }
-];
+import { ShoppingCart } from 'lucide-vue-next';
+import { formatCurrency, formatDate, getSaleStatus } from '../../utils/format';
 
-const statusClasses = {
-    Completada: 'bg-accent/10 text-accent',
-    Pendiente: 'bg-warning/10 text-warning',
-    Cancelada: 'bg-danger/10 text-danger'
-};
+defineProps({
+    sales: { type: Array, default: () => [] }
+});
 </script>
 
 <template>
@@ -34,7 +27,23 @@ const statusClasses = {
             </RouterLink>
         </div>
 
-        <div class="overflow-x-auto">
+        <div
+            v-if="sales.length === 0"
+            class="flex flex-col items-center rounded-lg bg-background px-4 py-8 text-center"
+        >
+            <ShoppingCart :size="30" class="text-text-muted" />
+            <p class="mt-3 text-sm font-semibold text-text-main">
+                Aún no hay ventas registradas
+            </p>
+            <RouterLink
+                to="/ventas?nueva=1"
+                class="mt-2 text-xs font-semibold text-accent hover:underline"
+            >
+                Registrar la primera venta →
+            </RouterLink>
+        </div>
+
+        <div v-else class="overflow-x-auto">
             <table class="w-full min-w-[550px] text-left text-sm">
                 <thead>
                     <tr class="border-b border-border text-xs text-text-muted">
@@ -53,29 +62,29 @@ const statusClasses = {
                         class="border-b border-border last:border-0 hover:bg-background/60"
                     >
                         <td class="px-3 py-4 font-medium text-primary">
-                            {{ sale.id }}
+                            {{ sale.code }}
                         </td>
 
                         <td class="px-3 py-4 text-text-main">
-                            {{ sale.client }}
+                            {{ sale.customer?.name ?? 'Cliente general' }}
                         </td>
 
                         <td class="px-3 py-4 text-text-muted">
-                            {{ sale.date }}
+                            {{ formatDate(sale.sold_at) }}
                         </td>
 
                         <td class="px-3 py-4 font-semibold text-text-main">
-                            {{ sale.total }}
+                            {{ formatCurrency(sale.total) }}
                         </td>
 
                         <td class="px-3 py-4">
                             <span
                                 :class="[
                                     'rounded-full px-2.5 py-1 text-xs font-semibold',
-                                    statusClasses[sale.status]
+                                    getSaleStatus(sale.status).classes
                                 ]"
                             >
-                                {{ sale.status }}
+                                {{ getSaleStatus(sale.status).label }}
                             </span>
                         </td>
                     </tr>

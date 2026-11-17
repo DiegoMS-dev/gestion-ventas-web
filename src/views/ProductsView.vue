@@ -1,6 +1,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 
 import ProductFilters from '../components/products/ProductFilters.vue';
 import ProductTable from '../components/products/ProductTable.vue';
@@ -16,6 +17,9 @@ import {
     updateProduct,
     deleteProduct as deleteProductRequest
 } from '../services/productService';
+
+const route = useRoute();
+const router = useRouter();
 
 const products = ref([]);
 const categories = ref([]);
@@ -157,6 +161,12 @@ onMounted(async () => {
         loadProducts(),
         loadCategories()
     ]);
+
+    // Acceso rápido desde el dashboard: /productos?nuevo=1
+    if (route.query.nuevo) {
+        openCreateModal();
+        router.replace({ query: {} });
+    }
 });
 </script>
 

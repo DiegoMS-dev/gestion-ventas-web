@@ -1,36 +1,52 @@
-
 <script setup>
-import { AlertTriangle, Clock, ClipboardList } from 'lucide-vue-next';
+import { computed } from 'vue';
+import { AlertTriangle, Clock } from 'lucide-vue-next';
 
-const tasks = [
+const props = defineProps({
+    // { out_of_stock, low_stock, pending_sales }
+    pending: {
+        type: Object,
+        default: () => ({ out_of_stock: 0, low_stock: 0, pending_sales: 0 })
+    }
+});
+
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+const tasks = computed(() => [
     {
         title: 'Productos agotados',
-        description: 'Hay 2 productos sin existencias.',
-        count: 2,
+        description: props.pending.out_of_stock > 0
+            ? `Hay ${plural(props.pending.out_of_stock, 'producto', 'productos')} sin existencias.`
+            : 'Ningún producto agotado.',
+        count: props.pending.out_of_stock,
         icon: AlertTriangle,
         color: 'text-danger',
         background: 'bg-danger/10',
-        link: '/inventario'
+        link: '/inventario?estado=Agotado'
     },
     {
         title: 'Stock bajo',
-        description: '5 productos necesitan reposición.',
-        count: 5,
+        description: props.pending.low_stock > 0
+            ? `${plural(props.pending.low_stock, 'producto necesita', 'productos necesitan')} reposición.`
+            : 'Ningún producto con stock bajo.',
+        count: props.pending.low_stock,
         icon: AlertTriangle,
         color: 'text-warning',
         background: 'bg-warning/10',
-        link: '/inventario'
+        link: '/inventario?estado=Stock bajo'
     },
     {
-        title: 'Operaciones pendientes',
-        description: 'Hay ventas que requieren revisión.',
-        count: 3,
+        title: 'Ventas pendientes',
+        description: props.pending.pending_sales > 0
+            ? `${plural(props.pending.pending_sales, 'venta espera', 'ventas esperan')} confirmación de pago.`
+            : 'No hay ventas pendientes de pago.',
+        count: props.pending.pending_sales,
         icon: Clock,
         color: 'text-info',
         background: 'bg-info/10',
-        link: '/ventas'
+        link: '/ventas?estado=Pendiente'
     }
-];
+]);
 </script>
 
 <template>
@@ -54,8 +70,8 @@ const tasks = [
                 <div
                     :class="[
                         'grid size-10 shrink-0 place-items-center rounded-lg',
-                        task.background,
-                        task.color
+                        task.count > 0 ? task.background : 'bg-background',
+                        task.count > 0 ? task.color : 'text-text-muted'
                     ]"
                 >
                     <component :is="task.icon" :size="19" />
@@ -73,8 +89,8 @@ const tasks = [
                 <span
                     :class="[
                         'rounded-full px-2.5 py-1 text-xs font-bold',
-                        task.background,
-                        task.color
+                        task.count > 0 ? task.background : 'bg-background',
+                        task.count > 0 ? task.color : 'text-text-muted'
                     ]"
                 >
                     {{ task.count }}
