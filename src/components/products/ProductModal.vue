@@ -7,43 +7,40 @@ const props = defineProps({
     product: {
         type: Object,
         default: null
+    },
+    categories: {
+        type: Array,
+        default: () => []
     }
 });
 
 const emit = defineEmits(['close', 'save']);
 
-const categories = [
-    'Periféricos',
-    'Monitores',
-    'Accesorios',
-    'Componentes',
-    'Almacenamiento'
-];
-
-const form = ref({
+const emptyForm = () => ({
     code: '',
     name: '',
-    category: '',
+    category_id: '',
     price: '',
     stock: '',
     minStock: ''
 });
 
+const form = ref(emptyForm());
 const errors = ref({});
 
 watch(
     () => props.product,
     (product) => {
         form.value = product
-            ? { ...product }
-            : {
-                code: '',
-                name: '',
-                category: '',
-                price: '',
-                stock: '',
-                minStock: ''
-            };
+            ? {
+                code: product.code ?? '',
+                name: product.name ?? '',
+                category_id: product.category_id ?? '',
+                price: product.price ?? '',
+                stock: product.stock ?? '',
+                minStock: product.minStock ?? product.min_stock ?? ''
+            }
+            : emptyForm();
 
         errors.value = {};
     },
@@ -61,8 +58,8 @@ function validateForm() {
         errors.value.name = 'El nombre es obligatorio.';
     }
 
-    if (!form.value.category) {
-        errors.value.category = 'Selecciona una categoría.';
+    if (!form.value.category_id) {
+        errors.value.category_id = 'Selecciona una categoría.';
     }
 
     if (form.value.price === '' || Number(form.value.price) <= 0) {
@@ -92,9 +89,9 @@ function submitForm() {
     if (!validateForm()) return;
 
     emit('save', {
-        ...form.value,
         code: form.value.code.trim(),
         name: form.value.name.trim(),
+        category_id: Number(form.value.category_id),
         price: Number(form.value.price),
         stock: Number(form.value.stock),
         minStock: Number(form.value.minStock)
@@ -184,9 +181,9 @@ function submitForm() {
                     </label>
 
                     <select
-                        v-model="form.category"
+                        v-model="form.category_id"
                         class="w-full rounded-lg border border-border bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
-                        :class="{ 'border-danger': errors.category }"
+                        :class="{ 'border-danger': errors.category_id }"
                     >
                         <option value="" disabled>
                             Selecciona una categoría
@@ -194,15 +191,19 @@ function submitForm() {
 
                         <option
                             v-for="category in categories"
-                            :key="category"
-                            :value="category"
+                            :key="category.id"
+                            :value="category.id"
                         >
-                            {{ category }}
+                            {{ category.name }}
                         </option>
                     </select>
 
-                    <p v-if="errors.category" class="mt-1 text-xs text-danger">
-                        {{ errors.category }}
+                    <p v-if="errors.category_id" class="mt-1 text-xs text-danger">
+                        {{ errors.category_id }}
+                    </p>
+
+                    <p v-if="categories.length === 0" class="mt-1 text-xs text-text-muted">
+                        No hay categorías registradas. Primero crea una categoría.
                     </p>
                 </div>
 
@@ -281,7 +282,8 @@ function submitForm() {
 
                     <button
                         type="submit"
-                        class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-secondary"
+                        :disabled="categories.length === 0"
+                        class="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {{ product ? 'Guardar cambios' : 'Registrar producto' }}
                     </button>
@@ -290,9 +292,3 @@ function submitForm() {
         </section>
     </div>
 </template>
-
-<!-- Estadísticas -->
-<ProductStatsModal
-    v-if="showStatsModal"
-    @close="showStatsModal = false"
-/>

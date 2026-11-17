@@ -1,60 +1,24 @@
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 import ProductFilters from '../components/products/ProductFilters.vue';
 import ProductTable from '../components/products/ProductTable.vue';
 import ProductModal from '../components/products/ProductModal.vue';
-import { ChartColumn } from 'lucide-vue-next';
 import ProductStatsModal from '../components/products/ProductStatsModal.vue';
 
-const products = ref([
-    {
-        id: 1,
-        code: 'PRD-001',
-        name: 'Teclado mecánico',
-        category: 'Periféricos',
-        price: 150,
-        stock: 12,
-        minStock: 5
-    },
-    {
-        id: 2,
-        code: 'PRD-002',
-        name: 'Mouse inalámbrico',
-        category: 'Periféricos',
-        price: 65,
-        stock: 3,
-        minStock: 5
-    },
-    {
-        id: 3,
-        code: 'PRD-003',
-        name: 'Monitor 24 pulgadas',
-        category: 'Monitores',
-        price: 650,
-        stock: 8,
-        minStock: 3
-    },
-    {
-        id: 4,
-        code: 'PRD-004',
-        name: 'Cable HDMI',
-        category: 'Accesorios',
-        price: 25,
-        stock: 0,
-        minStock: 10
-    },
-    {
-        id: 5,
-        code: 'PRD-005',
-        name: 'Audífonos Bluetooth',
-        category: 'Accesorios',
-        price: 120,
-        stock: 20,
-        minStock: 5
-    }
-]);
+import { getCategories } from '../services/categoryService';
+import { ChartColumn } from 'lucide-vue-next';
+
+import {
+    getProducts,
+    createProduct,
+    updateProduct,
+    deleteProduct as deleteProductRequest
+} from '../services/productService';
+
+const products = ref([]);
+const categories = ref([]);
 
 const search = ref('');
 const selectedCategory = ref('Todas');
@@ -64,7 +28,11 @@ const showModal = ref(false);
 const showStatsModal = ref(false);
 const editingProduct = ref(null);
 
-const categories = computed(() => [
+const loading = ref(false);
+const errorMessage = ref('');
+
+// Categorías para los filtros
+const categoryFilters = computed(() => [
     'Todas',
     ...new Set(products.value.map(product => product.category))
 ]);
@@ -91,6 +59,38 @@ const filteredProducts = computed(() => {
     });
 });
 
+// Obtener productos de Laravel
+async function loadProducts() {
+    loading.value = true;
+    errorMessage.value = '';
+
+    try {
+        const data = await getProducts();
+
+        products.value = data.map(product => ({
+            ...product,
+            category: product.category?.name ?? 'Sin categoría',
+            minStock: product.min_stock
+        }));
+
+    } catch (error) {
+        console.error('Error al cargar productos:', error);
+        errorMessage.value = 'No se pudieron cargar los productos.';
+    } finally {
+        loading.value = false;
+    }
+}
+
+// Obtener categorías de Laravel
+async function loadCategories() {
+    try {
+        categories.value = await getCategories();
+    } catch (error) {
+        console.error('Error al cargar categorías:', error);
+        errorMessage.value = 'No se pudieron cargar las categorías.';
+    }
+}
+
 function openCreateModal() {
     editingProduct.value = null;
     showModal.value = true;
@@ -101,43 +101,68 @@ function openEditModal(product) {
     showModal.value = true;
 }
 
-function saveProduct(productData) {
-    if (editingProduct.value) {
-        const index = products.value.findIndex(
-            product => product.id === editingProduct.value.id
-        );
+// Crear o actualizar producto
+async function saveProduct(productData) {
+    errorMessage.value = '';
 
-        products.value[index] = {
+    try {
+        const data = {
             ...productData,
-            id: editingProduct.value.id
+            min_stock: productData.minStock
         };
-    } else {
-        products.value.push({
-            ...productData,
-            id: Date.now()
-        });
-    }
 
-    showModal.value = false;
+        delete data.minStock;
+
+        if (editingProduct.value) {
+            await updateProduct(editingProduct.value.id, data);
+        } else {
+            await createProduct(data);
+        }
+
+        showModal.value = false;
+        await loadProducts();
+
+    } catch (error) {
+        console.error('Error al guardar producto:', error);
+
+        if (error.response?.status === 422) {
+            errorMessage.value = 'Revisa los datos ingresados. Hay campos inválidos o una categoría o código no válido.';
+        } else {
+            errorMessage.value = 'No se pudo guardar el producto.';
+        }
+    }
 }
 
-function deleteProduct(product) {
+// Eliminar producto
+async function deleteProduct(product) {
     const confirmed = window.confirm(
         `¿Estás seguro de eliminar "${product.name}"?`
     );
 
     if (!confirmed) return;
 
-    products.value = products.value.filter(
-        item => item.id !== product.id
-    );
+    errorMessage.value = '';
+
+    try {
+        await deleteProductRequest(product.id);
+        await loadProducts();
+    } catch (error) {
+        console.error('Error al eliminar producto:', error);
+        errorMessage.value = 'No se pudo eliminar el producto.';
+    }
 }
+
+onMounted(async () => {
+    await Promise.all([
+        loadProducts(),
+        loadCategories()
+    ]);
+});
 </script>
 
 <template>
     <div class="space-y-6">
 
-        
         <!-- Encabezado -->
         <header class="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -168,17 +193,33 @@ function deleteProduct(product) {
             </div>
         </header>
 
+        <!-- Mensajes -->
+        <div
+            v-if="errorMessage"
+            class="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger"
+        >
+            {{ errorMessage }}
+        </div>
 
         <!-- Filtros -->
         <ProductFilters
             v-model:search="search"
             v-model:category="selectedCategory"
             v-model:status="selectedStatus"
-            :categories="categories"
+            :categories="categoryFilters"
         />
+
+        <!-- Cargando -->
+        <div
+            v-if="loading"
+            class="rounded-xl border border-border bg-surface p-8 text-center text-sm text-text-muted"
+        >
+            Cargando productos...
+        </div>
 
         <!-- Tabla -->
         <ProductTable
+            v-else
             :products="filteredProducts"
             @edit="openEditModal"
             @delete="deleteProduct"
@@ -188,12 +229,15 @@ function deleteProduct(product) {
         <ProductModal
             v-if="showModal"
             :product="editingProduct"
+            :categories="categories"
             @close="showModal = false"
             @save="saveProduct"
         />
+
         <!-- Estadísticas -->
         <ProductStatsModal
             v-if="showStatsModal"
+            :products="products"
             @close="showStatsModal = false"
         />
 
